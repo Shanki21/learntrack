@@ -1,0 +1,138 @@
+1. why enum constants (and final constants generally) are written in ALL_CAPS by
+ convention?
+
+it's a naming convention for anything whose value is fixed and unchangeable — not
+ specific to enums at all
+PI, MAX_USERS, and ACTIVE are all written in ALL_CAPS with underscores between words
+ (called SCREAMING_SNAKE_CASE)
+
+2. difference between a default constructor and a parameterized constructor?
+
+Default constructor: A constructor with no parameters. It doesn't mean "no fields" —
+the object still has all its fields, they just don't get set from outside at creation
+time (they end up with default values like null, 0, false, unless you assign something
+inside the constructor body yourself).
+
+public Person() {
+    // no parameters — fields stay at default values unless set here
+}
+
+Parameterized constructor: A constructor that takes arguments, letting you set the
+fields' actual values right when the object is created — rather than leaving them
+default and setting them one by one afterward via setters.
+
+public Person(String id, String firstName, String lastName, String email) {
+    this.id = id;
+    this.firstName = firstName;
+    this.lastName = lastName;
+    this.email = email;
+}
+
+So the real distinction is: "do I supply the values now, at construction time, or not.
+" Not about which fields "exist" — every object has all its declared fields either
+way. It's about when and how they get populated.
+
+Also notice this.id = id; — the this keyword refers to "the current object's field,"
+disambiguating it from the parameter id which has the same name. You've likely seen
+this before, but it's worth being able to explain out loud in an interview.
+
+3.what keyword do you use inside Student's constructor to call Person's constructor
+ and avoid re-writing id, firstName, lastName, email assignment logic all over again?
+
+ super() doesn't call the parent class's fields — it calls the parent class's
+ constructor. That's the key distinction. Fields are just data; super() is
+ specifically invoking the method that initializes those fields (the constructor).
+
+super() must be the very first statement in the child constructor — you can't do
+anything before it.
+If you don't call super(...) explicitly, Java silently inserts a call to the
+parent's no-argument constructor for you. Since Person here only has a
+parameterized constructor (no default one), skipping super(...) in Student would
+actually cause a compile error — worth remembering as a "why did this break" scenario.
+
+4.firstName/lastName are private in Person, so Student can't access them directly.
+What would you call instead to get that data?
+
+Setter = writes/changes a value (setFirstName(...))
+Getter = reads/returns a value (getFirstName())
+
+you call getFirstName() and getLastName() — the public getter methods — not firstName/lastName
+directly, because those fields are private in Person and Student (even as a subclass)
+can't reach them directly. This is encapsulation holding firm even across inheritance — a
+subclass gets behavior (public/protected methods) from its parent, not direct access to private data.
+
+Also notice @Override above the method — that's an annotation. It's optional but strongly
+recommended: it tells the compiler "I intend to override a parent method," and if you typo
+the method name or signature, the compiler will catch it immediately instead of silently
+creating a brand new unrelated method.
+
+5.why we use static fields and methods in ids ?
+
+A static field is different — it belongs to the class itself, not any individual object. There's only one copy,
+shared across everything, no matter how many objects you create.
+
+java
+public class Counter {
+    static int count = 0;   // ONE shared copy
+
+    public Counter() {
+        count++;             // every new object increments the SAME variable
+    }
+}
+
+If you create 5 Counter objects, count becomes 5 — not five separate 1s. This is exactly why IdGenerator uses
+static: you want one running counter shared across every Student ever created, not a counter that resets
+per-object.
+
+Static methods follow the same logic — they belong to the class, so you call them without creating an object:
+
+Math.max(3, 7)     // no `new Math()` needed — max() is static
+
+5.What is an exception?
+
+It's Java's way of signaling "something went wrong" at runtime — instead of the program crashing with no
+explanation, an exception object gets "thrown," and code elsewhere can "catch" it and handle it gracefully
+(e.g., show a clean message instead of crashing).
+
+Custom exceptions = you define your own exception type for situations specific to your program, instead of
+only using Java's built-in ones (NullPointerException, ArithmeticException, etc.). You do this by extending
+an existing exception class:
+
+public class EntityNotFoundException extends Exception {
+    public EntityNotFoundException(String message) {
+        super(message);   // passes the message up to Exception's constructor
+    }
+}
+
+Notice the pattern is familiar — extends + super(), exactly like Student extends Person. Here, super(message)
+ calls Exception's own constructor, which stores that message so it can later be retrieved via .getMessage()
+
+ 6.Difference b/w == and .equals() ?
+
+ for comparing String contents, always use .equals(), never ==. == checks if two references point to the exact
+ same object in memory; .equals() checks if the actual text content matches.
+
+7.Q: Why did you create a Repository class instead of storing the ArrayList inside the Service?
+
+The Repository is responsible for data storage and retrieval, while the Service contains the business logic.
+Separating these responsibilities makes the code more modular, easier to maintain, easier to test, and
+closer to the architecture used in frameworks like Spring Boot.
+
+8.should EnrollmentService create its own new StudentRepository() and new CourseRepository() internally
+(like it does for its own repository), or should those be passed in from outside (e.g., via the constructor,
+so the same repository instances used by StudentService/CourseService are reused)? Think about what happens
+to data consistency if EnrollmentService and StudentService end up holding two separate ArrayLists of students
+instead of sharing one ?
+
+Now you have two completely separate StudentRepository objects, each with its own separate ArrayList<Student>.
+If you add a student through studentService.addStudent(...), that student goes into StudentService's repository
+— but EnrollmentService's repository never sees it. So when you try to enroll that student, EnrollmentService
+checks its own (empty) list, doesn't find the student, and incorrectly throws EntityNotFoundException — even
+though the student clearly exists.
+
+This is a real, common bug category: inconsistent state from duplicated objects that should be shared.
+
+The fix: EnrollmentService shouldn't create its own StudentRepository/CourseRepository. Instead, it should
+receive the same instances that StudentService/CourseService are using — via constructor parameters. This is a
+lightweight form of a pattern called dependency injection: instead of a class creating its own dependencies,
+they're handed to it from outside, so everyone shares the same data.
