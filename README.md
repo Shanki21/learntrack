@@ -158,4 +158,4 @@ classDiagram
 
 ## Author
 
-Mridul — built as a solo portfolio project.
+Mridul 
